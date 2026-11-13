@@ -23,6 +23,17 @@ class ConfigTests(unittest.TestCase):
     def test_urls_must_be_absolute_http_urls(self) -> None:
         with self.assertRaisesRegex(ValueError, "absolute http"):
             TargetConfig("target", "example.com", 443, "/relative")
+        with self.assertRaisesRegex(ValueError, "invalid port"):
+            TargetConfig("target", "example.com", 443, "https://example.com:bad/")
+        with self.assertRaisesRegex(ValueError, "must not contain credentials"):
+            TargetConfig("target", "example.com", 443, "https://user:pass@example.com/")
+
+    def test_download_safety_limits_are_validated(self) -> None:
+        target = TargetConfig("target", "example.com", 443, "https://example.com")
+        with self.assertRaisesRegex(ValueError, "download_max_bytes"):
+            AppConfig(5, 5.0, 0.25, target, download_max_bytes=100)
+        with self.assertRaisesRegex(ValueError, "download_max_seconds"):
+            AppConfig(5, 5.0, 0.25, target, download_max_seconds=0)
 
     def test_missing_field_has_readable_error(self) -> None:
         values = {"repetitions": 5}

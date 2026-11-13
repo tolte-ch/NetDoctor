@@ -2,6 +2,8 @@
   "repetitions": 5,
   "timeout_seconds": 5.0,
   "pause_between_runs_seconds": 0.25,
+  "download_max_bytes": 5000000,
+  "download_max_seconds": 5.0,
   "target": {
     "name": "Example target",
     "host": "example.com",

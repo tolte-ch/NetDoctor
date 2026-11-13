@@ -1,0 +1,14 @@
+{
+  "repetitions": 5,
+  "timeout_seconds": 2.0,
+  "pause_between_runs_seconds": 0.1,
+  "download_max_bytes": 2000000,
+  "download_max_seconds": 2.0,
+  "target": {
+    "name": "Local NetDoctor test server",
+    "host": "127.0.0.1",
+    "tcp_port": 8765,
+    "http_url": "http://127.0.0.1:8765/",
+    "download_url": "http://127.0.0.1:8765/download"
+  }
+}

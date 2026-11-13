@@ -3,9 +3,8 @@
 NetDoctor는 DNS 조회, TCP 연결, HTTP 응답 시작 시간(TTFB), 다운로드 처리율,
 RTT를 측정해 사용자가 이해할 수 있는 말로 네트워크 상태를 설명하는 프로젝트입니다.
 
-현재 저장소에는 **1주차 설계 및 실행 골격**이 구현되어 있습니다. 실제 네트워크
-측정은 2주차 범위이며, 지금은 측정 계획·데이터 계약·설정 검증·대시보드
-와이어프레임을 확인할 수 있습니다.
+현재 저장소에는 1주차 설계 골격과 **2주차 실제 측정 엔진**이 구현되어 있습니다.
+실제 측정은 반드시 본인이 관리하거나 측정을 허용받은 서버에만 사용해야 합니다.
 
 ## 빠른 시작
 
@@ -16,6 +15,7 @@ Python 3.11 이상이 필요합니다. 별도 패키지 설치 없이 저장소 
 python -m netdoctor plan
 python -m netdoctor demo
 python -m netdoctor demo --json
+python -m netdoctor --config config/local-test.json measure
 python -m netdoctor dashboard --port 8000
 ```
 
@@ -38,18 +38,61 @@ netdoctor plan
 python -m netdoctor --config config/default.json plan
 ```
 
-반복 횟수는 프로젝트 요구사항에 맞춰 5~10회만 허용합니다. 다운로드 URL은 2주차에
-본인 또는 측정을 허용한 서버로 지정할 예정이므로 현재 기본값은 `null`입니다.
+반복 횟수는 프로젝트 요구사항에 맞춰 5~10회만 허용합니다. `measure` 명령은 실수로
+공개 서버를 측정하지 않도록 `--config`를 반드시 요구합니다. 다운로드 URL은 본인 또는
+측정을 허용한 서버로 지정하고, 최대 바이트와 최대 시간을 작게 유지하세요.
+
+## 실제 측정
+
+외부 서버를 사용하기 전에 로컬 테스트 서버로 전체 흐름을 확인할 수 있습니다.
+
+첫 번째 PowerShell:
+
+```powershell
+python tools/local_test_server.py
+```
+
+두 번째 PowerShell:
+
+```powershell
+python -m netdoctor --config config/local-test.json measure
+python -m netdoctor --config config/local-test.json measure --json
+python -m netdoctor --config config/local-test.json measure --json --output results/local.json
+```
+
+로컬 설정은 HTTP를 사용하므로 `TLS 연결`이 `unavailable`로 표시되는 것이 정상입니다.
+그 외 DNS, TCP, TTFB, 다운로드, RTT는 표본 5개와 요약 통계를 출력해야 합니다.
+
+실제 허가된 서버를 측정하려면 `config/default.json`을 복사해 대상 호스트, 포트,
+HTTP URL, 다운로드 URL을 변경합니다. 핵심 설정은 다음과 같습니다.
+
+```json
+{
+  "repetitions": 5,
+  "timeout_seconds": 5.0,
+  "pause_between_runs_seconds": 0.25,
+  "download_max_bytes": 5000000,
+  "download_max_seconds": 5.0
+}
+```
+
+결과 상태는 `success`, `partial`, `unavailable`, `failed`로 구분됩니다. 일부 시도가
+실패해도 성공한 표본은 보존되고 다음 지표와 다음 반복은 계속 실행됩니다.
 
 ## 테스트
 
 ```powershell
+python -m compileall -q netdoctor tests tools
 python -m unittest discover -s tests -v
 ```
+
+자동 테스트에는 외부 인터넷을 사용하지 않는 로컬 TCP·HTTP·다운로드 통합 테스트와
+부분 실패 시나리오가 포함됩니다.
 
 ## 문서
 
 - [`docs/week1-design.md`](docs/week1-design.md): 측정 정의, 구조, 데이터 계약, 윤리
+- [`docs/week2-measurement.md`](docs/week2-measurement.md): 실제 측정 경계와 실패 처리
 - [`docs/roadmap.md`](docs/roadmap.md): 5주 개발 로드맵과 주차별 완료 조건
 
 ## 현재 범위
@@ -60,7 +103,9 @@ python -m unittest discover -s tests -v
 - [x] CLI 계획 출력과 명시적인 데모 결과
 - [x] 반응형 웹 대시보드 와이어프레임
 - [x] 단위 테스트
-- [ ] 실제 DNS/TCP/TTFB/다운로드/RTT 측정
+- [x] 실제 DNS/TCP/TLS/TTFB/다운로드/RTT 측정
+- [x] 5~10회 반복, 부분 실패 처리, 패킷 손실률
+- [x] 실제 측정 CLI와 JSON 파일 저장
 - [ ] 규칙 기반 진단
 - [ ] 실제 측정 API와 대시보드 연결
 

@@ -1,4 +1,4 @@
-"""Command-line interface for the week-one NetDoctor scaffold."""
+"""Command-line interface for NetDoctor."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Sequence
 
 from .config import AppConfig, load_config
+from .measurement import run_diagnostics
 from .models import RunResult
 
 
@@ -32,6 +33,14 @@ def _parser() -> argparse.ArgumentParser:
     commands.add_parser("plan", help="show the validated measurement plan")
     demo = commands.add_parser("demo", help="show fictional data for contract validation")
     demo.add_argument("--json", action="store_true", help="emit the full JSON result")
+    measure = commands.add_parser("measure", help="run real network measurements")
+    measure.add_argument("--json", action="store_true", help="emit the full JSON result")
+    measure.add_argument("--output", type=Path, help="also save the result as UTF-8 JSON")
+    measure.add_argument(
+        "--quiet",
+        action="store_true",
+        help="hide per-run progress messages",
+    )
     dashboard = commands.add_parser("dashboard", help="serve the dashboard wireframe")
     dashboard.add_argument("--host", default="127.0.0.1")
     dashboard.add_argument("--port", type=int, default=8000)
@@ -39,20 +48,20 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _print_plan(config: AppConfig) -> None:
-    print("NetDoctor 측정 계획 (1주차 설계)")
+    print("NetDoctor 측정 계획")
     print(f"대상: {config.target.name} ({config.target.host}:{config.target.tcp_port})")
     print(f"HTTP: {config.target.http_url}")
-    download = config.target.download_url or "미설정 — 허가된 측정 서버 필요"
+    download = config.target.download_url or "미설정 - 허가된 측정 서버 필요"
     print(f"다운로드: {download}")
     print(f"반복: {config.repetitions}회 / 타임아웃: {config.timeout_seconds:g}초")
     print()
     for index, (name, definition) in enumerate(METRIC_PLAN, start=1):
         print(f"{index}. {name}: {definition}")
-    print("\n현재 단계에서는 실제 네트워크 요청을 보내지 않습니다.")
+    print("\n이 명령은 계획만 표시하며 네트워크 요청을 보내지 않습니다.")
 
 
 def _print_demo(result: RunResult) -> None:
-    print("NetDoctor 데모 결과 — 실제 측정값이 아닙니다")
+    print("NetDoctor 데모 결과 - 실제 측정값이 아닙니다")
     print(f"대상: {result.target_name} ({result.target_host})")
     for metric in result.metrics:
         assert metric.summary is not None
@@ -62,6 +71,27 @@ def _print_demo(result: RunResult) -> None:
             f"(최소 {summary.minimum:.1f}, 최대 {summary.maximum:.1f})"
         )
     print(f"\n주의: {result.notes[0]}")
+
+
+def _print_measured(result: RunResult) -> None:
+    print("NetDoctor 실제 측정 결과")
+    print(f"대상: {result.target_name} ({result.target_host})")
+    print(f"반복 요청: {result.repetitions_requested}회")
+    for metric in result.metrics:
+        if metric.summary is None:
+            print(f"{metric.label:<9} {metric.status:>11} - {metric.error or '측정값 없음'}")
+            continue
+        summary = metric.summary
+        detail = (
+            f"중앙값 {summary.median:>8.2f} {metric.unit} "
+            f"(평균 {summary.mean:.2f}, 최소 {summary.minimum:.2f}, "
+            f"최대 {summary.maximum:.2f}, n={summary.count})"
+        )
+        print(f"{metric.label:<9} {metric.status:>11} - {detail}")
+        if metric.error:
+            print(f"{'':<22}주의: {metric.error}")
+    for note in result.notes:
+        print(f"참고: {note}")
 
 
 def _serve_dashboard(host: str, port: int) -> int:
@@ -100,6 +130,24 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(result.to_json())
             else:
                 _print_demo(result)
+        elif args.command == "measure":
+            if args.config is None:
+                raise ValueError(
+                    "real measurement requires --config with a target you are authorized to test"
+                )
+
+            def progress(current: int, total: int) -> None:
+                if not args.quiet:
+                    print(f"측정 {current}/{total} 실행 중...", file=sys.stderr)
+
+            result = run_diagnostics(config, progress=progress)
+            if args.output:
+                args.output.parent.mkdir(parents=True, exist_ok=True)
+                args.output.write_text(result.to_json() + "\n", encoding="utf-8")
+            if args.json:
+                print(result.to_json())
+            else:
+                _print_measured(result)
         elif args.command == "dashboard":
             return _serve_dashboard(args.host, args.port)
     except ValueError as error:

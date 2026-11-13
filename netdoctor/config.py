@@ -13,6 +13,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "repetitions": 5,
     "timeout_seconds": 5.0,
     "pause_between_runs_seconds": 0.25,
+    "download_max_bytes": 5000000,
+    "download_max_seconds": 5.0,
     "target": {
         "name": "Example target",
         "host": "example.com",
@@ -27,6 +29,14 @@ def _validate_url(value: str, field_name: str) -> None:
     parsed = urlparse(value)
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
         raise ValueError(f"{field_name} must be an absolute http(s) URL")
+    try:
+        port = parsed.port
+    except ValueError as error:
+        raise ValueError(f"{field_name} contains an invalid port") from error
+    if port is not None and not 1 <= port <= 65_535:
+        raise ValueError(f"{field_name} contains an invalid port")
+    if parsed.username is not None or parsed.password is not None:
+        raise ValueError(f"{field_name} must not contain credentials")
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,6 +81,8 @@ class AppConfig:
     timeout_seconds: float
     pause_between_runs_seconds: float
     target: TargetConfig
+    download_max_bytes: int = 5_000_000
+    download_max_seconds: float = 5.0
 
     def __post_init__(self) -> None:
         if not 5 <= self.repetitions <= 10:
@@ -79,6 +91,10 @@ class AppConfig:
             raise ValueError("timeout_seconds must be greater than 0 and at most 60")
         if not 0 <= self.pause_between_runs_seconds <= 10:
             raise ValueError("pause_between_runs_seconds must be between 0 and 10")
+        if not 1_024 <= self.download_max_bytes <= 100_000_000:
+            raise ValueError("download_max_bytes must be between 1024 and 100000000")
+        if not 0 < self.download_max_seconds <= 60:
+            raise ValueError("download_max_seconds must be greater than 0 and at most 60")
 
     @classmethod
     def from_dict(cls, values: dict[str, Any]) -> AppConfig:
@@ -88,6 +104,8 @@ class AppConfig:
                 timeout_seconds=float(values["timeout_seconds"]),
                 pause_between_runs_seconds=float(values["pause_between_runs_seconds"]),
                 target=TargetConfig.from_dict(values["target"]),
+                download_max_bytes=int(values.get("download_max_bytes", 5_000_000)),
+                download_max_seconds=float(values.get("download_max_seconds", 5.0)),
             )
         except KeyError as error:
             raise ValueError(f"missing configuration field: {error.args[0]}") from error

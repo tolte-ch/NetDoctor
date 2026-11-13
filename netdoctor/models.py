@@ -11,7 +11,7 @@ from typing import Any, Iterable, Literal
 from uuid import uuid4
 
 
-MetricStatus = Literal["success", "unavailable", "failed"]
+MetricStatus = Literal["success", "partial", "unavailable", "failed"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,14 +51,18 @@ class MetricResult:
     summary: StatisticalSummary | None = field(init=False)
 
     def __post_init__(self) -> None:
-        if self.status not in {"success", "unavailable", "failed"}:
+        if self.status not in {"success", "partial", "unavailable", "failed"}:
             raise ValueError(f"unsupported metric status: {self.status}")
         if self.status == "success" and not self.samples:
             raise ValueError("a successful metric must contain samples")
-        if self.status != "success" and self.samples:
-            raise ValueError("an unsuccessful metric cannot contain samples")
+        if self.status == "partial" and not self.samples:
+            raise ValueError("a partial metric must contain successful samples")
+        if self.status in {"unavailable", "failed"} and self.samples:
+            raise ValueError("an unavailable or failed metric cannot contain samples")
         if self.status == "failed" and not self.error:
             raise ValueError("a failed metric must contain an error message")
+        if self.status == "partial" and not self.error:
+            raise ValueError("a partial metric must describe failed attempts")
         if self.status == "success" and self.error:
             raise ValueError("a successful metric cannot contain an error message")
         summary = StatisticalSummary.from_samples(self.samples) if self.samples else None

@@ -37,6 +37,18 @@ class ResultContractTests(unittest.TestCase):
         )
         self.assertIsNone(metric.summary)
 
+    def test_partial_result_keeps_successful_samples_and_error(self) -> None:
+        metric = MetricResult(
+            "tcp_ms",
+            "TCP",
+            "ms",
+            (10.0, 12.0),
+            status="partial",
+            error="1/3 attempts failed",
+        )
+        self.assertEqual(metric.status, "partial")
+        self.assertEqual(metric.summary.count, 2)
+
     def test_demo_json_is_explicit_and_serializable(self) -> None:
         result = RunResult.demo("Example", "example.com", 7)
         payload = json.loads(result.to_json())
