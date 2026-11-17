@@ -3,7 +3,8 @@
 NetDoctor는 DNS 조회, TCP 연결, HTTP 응답 시작 시간(TTFB), 다운로드 처리율,
 RTT를 측정해 사용자가 이해할 수 있는 말로 네트워크 상태를 설명하는 프로젝트입니다.
 
-현재 저장소에는 1주차 설계 골격과 **2주차 실제 측정 엔진**이 구현되어 있습니다.
+현재 저장소에는 1주차 설계 골격, **2주차 실제 측정 엔진**, 그리고 측정 엔진과 연결된
+웹 대시보드가 구현되어 있습니다.
 실제 측정은 반드시 본인이 관리하거나 측정을 허용받은 서버에만 사용해야 합니다.
 
 ## 빠른 시작
@@ -16,11 +17,12 @@ python -m netdoctor plan
 python -m netdoctor demo
 python -m netdoctor demo --json
 python -m netdoctor --config config/local-test.json measure
-python -m netdoctor dashboard --port 8000
+python -m netdoctor --config config/local-test.json dashboard --port 8000
 ```
 
-마지막 명령을 실행한 뒤 <http://127.0.0.1:8000>을 열면 대시보드 초안을 볼 수
-있습니다. 종료할 때는 `Ctrl+C`를 누릅니다.
+마지막 명령을 실행한 뒤 <http://127.0.0.1:8000>을 열면 대시보드를 볼 수 있습니다.
+종료할 때는 `Ctrl+C`를 누릅니다. 대시보드에서 실제로 측정하는 방법은 아래
+[대시보드에서 실제 측정](#대시보드에서-실제-측정)을 참고하세요.
 
 설치형 명령을 사용하고 싶다면 다음과 같이 개발 모드로 설치합니다.
 
@@ -79,6 +81,30 @@ HTTP URL, 다운로드 URL을 변경합니다. 핵심 설정은 다음과 같습
 결과 상태는 `success`, `partial`, `unavailable`, `failed`로 구분됩니다. 일부 시도가
 실패해도 성공한 표본은 보존되고 다음 지표와 다음 반복은 계속 실행됩니다.
 
+## 대시보드에서 실제 측정
+
+첫 번째 PowerShell에서 `python tools/local_test_server.py`를 실행해 둔 뒤, 두 번째
+PowerShell에서 대시보드를 `--config`와 함께 실행합니다.
+
+```powershell
+python -m netdoctor --config config/local-test.json dashboard --port 8000
+```
+
+<http://127.0.0.1:8000>에서 반복 횟수(5~10회)를 고르고 **진단 시작**을 누르면 서버가
+실제 측정을 실행하고 지표 카드를 채웁니다. 대상은 서버의 `--config` 파일로 고정되며
+브라우저에서 바꿀 수 없습니다. `--config` 없이 실행하면 화면만 열리고 측정 버튼은
+꺼집니다.
+
+| 경로 | 메서드 | 설명 |
+| --- | --- | --- |
+| `/api/config` | GET | 측정 대상, 기본 반복 횟수, 측정 가능 여부 |
+| `/api/measure` | POST | `{"repetitions": 5}`로 실제 측정 실행 후 결과 JSON 반환 |
+| `/api/last` | GET | 마지막 측정 결과 (없으면 404) |
+
+`/api/measure`는 `Content-Type: application/json` 요청만 받고, 동시에 한 번만
+실행됩니다(진행 중이면 409). 원인 추정, 등급, 사용 경험 별점은 3주차 규칙 기반 진단에서
+채워집니다.
+
 ## 테스트
 
 ```powershell
@@ -107,7 +133,7 @@ python -m unittest discover -s tests -v
 - [x] 5~10회 반복, 부분 실패 처리, 패킷 손실률
 - [x] 실제 측정 CLI와 JSON 파일 저장
 - [ ] 규칙 기반 진단
-- [ ] 실제 측정 API와 대시보드 연결
+- [x] 실제 측정 API와 대시보드 연결 (표준 라이브러리 서버)
 
 ## 안전 원칙
 

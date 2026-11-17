@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import argparse
-import functools
-import http.server
 import sys
 from pathlib import Path
 from typing import Sequence
 
 from .config import AppConfig, load_config
+from .dashboard import DashboardState, serve
 from .measurement import run_diagnostics
 from .models import RunResult
 
@@ -41,7 +40,9 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="hide per-run progress messages",
     )
-    dashboard = commands.add_parser("dashboard", help="serve the dashboard wireframe")
+    dashboard = commands.add_parser(
+        "dashboard", help="serve the web dashboard (real measurement needs --config)"
+    )
     dashboard.add_argument("--host", default="127.0.0.1")
     dashboard.add_argument("--port", type=int, default=8000)
     return parser
@@ -94,26 +95,6 @@ def _print_measured(result: RunResult) -> None:
         print(f"참고: {note}")
 
 
-def _serve_dashboard(host: str, port: int) -> int:
-    if not 1 <= port <= 65535:
-        raise ValueError("port must be between 1 and 65535")
-    web_root = Path(__file__).resolve().parent / "web"
-    handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(web_root))
-    try:
-        server = http.server.ThreadingHTTPServer((host, port), handler)
-    except OSError as error:
-        raise ValueError(f"could not start dashboard server: {error}") from error
-    print(f"NetDoctor dashboard: http://{host}:{port}")
-    print("종료하려면 Ctrl+C를 누르세요.")
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        print("\nDashboard stopped.")
-    finally:
-        server.server_close()
-    return 0
-
-
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
@@ -149,7 +130,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             else:
                 _print_measured(result)
         elif args.command == "dashboard":
-            return _serve_dashboard(args.host, args.port)
+            state = DashboardState(config, measurement_enabled=args.config is not None)
+            return serve(args.host, args.port, state)
     except ValueError as error:
         print(f"설정 오류: {error}", file=sys.stderr)
         return 2
