@@ -63,6 +63,15 @@ python -m netdoctor --config config/local-test.json measure --json --output resu
 로컬 설정은 HTTP를 사용하므로 `TLS 연결`이 `unavailable`로 표시되는 것이 정상입니다.
 그 외 DNS, TCP, TTFB, 다운로드, RTT는 표본 5개와 요약 통계를 출력해야 합니다.
 
+Codex·IDE 샌드박스나 보안 프로그램이 서로 다른 프로세스 사이의 localhost 연결을
+차단한다면, 서버와 측정기를 한 Python 프로세스에서 실행하는 스모크 테스트를 사용합니다.
+이 명령은 사용 가능한 임시 포트를 자동으로 선택하므로 별도 서버 창이 필요 없습니다.
+
+```powershell
+python tools/local_smoke_test.py
+python tools/local_smoke_test.py --json --output results/local-smoke.json
+```
+
 실제 허가된 서버를 측정하려면 `config/default.json`을 복사해 대상 호스트, 포트,
 HTTP URL, 다운로드 URL을 변경합니다. 핵심 설정은 다음과 같습니다.
 
