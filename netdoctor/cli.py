@@ -6,9 +6,11 @@ import argparse
 import functools
 import http.server
 import sys
+from dataclasses import replace
 from pathlib import Path
 from typing import Sequence
 
+from .analysis import analyze
 from .config import AppConfig, load_config
 from .measurement import run_diagnostics
 from .models import RunResult
@@ -71,6 +73,34 @@ def _print_demo(result: RunResult) -> None:
             f"(최소 {summary.minimum:.1f}, 최대 {summary.maximum:.1f})"
         )
     print(f"\n주의: {result.notes[0]}")
+    _print_analysis(result)
+
+
+def _stars(value: int, maximum: int) -> str:
+    return "★" * value + "☆" * (maximum - value)
+
+
+def _print_analysis(result: RunResult) -> None:
+    if result.analysis is None:
+        return
+    analysis = result.analysis
+    print(f"\n종합 평가: {analysis.overall_label}")
+    print(f"주요 병목 추정: {analysis.primary_bottleneck}")
+    print(analysis.summary)
+    for rating in analysis.suitability:
+        stars = _stars(rating.stars, rating.maximum_stars)
+        print(f"{rating.label:<14} {stars} - {rating.assessment}")
+    print("\n판정 근거:")
+    for finding in analysis.findings:
+        values = ", ".join(
+            f"{item.label} {item.value:.2f} {item.unit}"
+            if item.value is not None
+            else f"{item.label} {item.status}"
+            for item in finding.evidence
+        ) or "해당 지표가 결과에 없음"
+        print(f"- {finding.title}: {finding.explanation} [{values}]")
+        print(f"  불확실성: {finding.uncertainty}")
+    print(f"전체 한계: {analysis.uncertainty}")
 
 
 def _print_measured(result: RunResult) -> None:
@@ -92,6 +122,7 @@ def _print_measured(result: RunResult) -> None:
             print(f"{'':<22}주의: {metric.error}")
     for note in result.notes:
         print(f"참고: {note}")
+    _print_analysis(result)
 
 
 def _serve_dashboard(host: str, port: int) -> int:
@@ -126,6 +157,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 config.target.host,
                 config.repetitions,
             )
+            result = replace(result, analysis=analyze(result), schema_version="1.2")
             if args.json:
                 print(result.to_json())
             else:
@@ -141,6 +173,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     print(f"측정 {current}/{total} 실행 중...", file=sys.stderr)
 
             result = run_diagnostics(config, progress=progress)
+            result = replace(result, analysis=analyze(result), schema_version="1.2")
             if args.output:
                 args.output.parent.mkdir(parents=True, exist_ok=True)
                 args.output.write_text(result.to_json() + "\n", encoding="utf-8")

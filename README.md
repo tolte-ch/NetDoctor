@@ -3,7 +3,7 @@
 NetDoctor는 DNS 조회, TCP 연결, HTTP 응답 시작 시간(TTFB), 다운로드 처리율,
 RTT를 측정해 사용자가 이해할 수 있는 말로 네트워크 상태를 설명하는 프로젝트입니다.
 
-현재 저장소에는 1주차 설계 골격과 **2주차 실제 측정 엔진**이 구현되어 있습니다.
+현재 저장소에는 1~2주차 골격·측정 엔진과 **3주차 설명 가능한 분석기**가 구현되어 있습니다.
 실제 측정은 반드시 본인이 관리하거나 측정을 허용받은 서버에만 사용해야 합니다.
 
 ## 빠른 시작
@@ -79,6 +79,11 @@ HTTP URL, 다운로드 URL을 변경합니다. 핵심 설정은 다음과 같습
 결과 상태는 `success`, `partial`, `unavailable`, `failed`로 구분됩니다. 일부 시도가
 실패해도 성공한 표본은 보존되고 다음 지표와 다음 반복은 계속 실행됩니다.
 
+측정 뒤에는 중앙값을 기준으로 단일·조합 규칙을 적용해 종합 평가, 주요 병목 후보,
+웹 브라우징·1080p·4K 스트리밍·화상회의 적합도를 출력합니다. 각 판정에는 사용한
+관측값과 단일 대상·시점 측정의 한계를 함께 표시합니다. `--json` 결과에서는
+`analysis` 항목으로 같은 내용을 확인할 수 있습니다.
+
 ## 테스트
 
 ```powershell
@@ -93,6 +98,7 @@ python -m unittest discover -s tests -v
 
 - [`docs/week1-design.md`](docs/week1-design.md): 측정 정의, 구조, 데이터 계약, 윤리
 - [`docs/week2-measurement.md`](docs/week2-measurement.md): 실제 측정 경계와 실패 처리
+- [`docs/week3-analysis.md`](docs/week3-analysis.md): 분석 임계값, 조합 규칙, 불확실성
 - [`docs/roadmap.md`](docs/roadmap.md): 5주 개발 로드맵과 주차별 완료 조건
 
 ## 현재 범위
@@ -106,7 +112,8 @@ python -m unittest discover -s tests -v
 - [x] 실제 DNS/TCP/TLS/TTFB/다운로드/RTT 측정
 - [x] 5~10회 반복, 부분 실패 처리, 패킷 손실률
 - [x] 실제 측정 CLI와 JSON 파일 저장
-- [ ] 규칙 기반 진단
+- [x] 근거와 불확실성을 포함한 규칙 기반 진단
+- [x] 웹·1080p·4K·화상회의 적합도 평가
 - [ ] 실제 측정 API와 대시보드 연결
 
 ## 안전 원칙

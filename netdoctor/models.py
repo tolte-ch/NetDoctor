@@ -12,6 +12,54 @@ from uuid import uuid4
 
 
 MetricStatus = Literal["success", "partial", "unavailable", "failed"]
+Severity = Literal["info", "warning", "critical"]
+
+
+@dataclass(frozen=True, slots=True)
+class Evidence:
+    metric_key: str
+    label: str
+    value: float | None
+    unit: str
+    status: MetricStatus
+    observation: str
+
+
+@dataclass(frozen=True, slots=True)
+class Finding:
+    code: str
+    severity: Severity
+    title: str
+    explanation: str
+    evidence: tuple[Evidence, ...]
+    uncertainty: str
+
+
+@dataclass(frozen=True, slots=True)
+class SuitabilityRating:
+    key: str
+    label: str
+    stars: int
+    maximum_stars: int
+    assessment: str
+    evidence: tuple[Evidence, ...]
+    uncertainty: str
+
+    def __post_init__(self) -> None:
+        if not 0 <= self.stars <= self.maximum_stars:
+            raise ValueError("stars must be between 0 and maximum_stars")
+
+
+@dataclass(frozen=True, slots=True)
+class DiagnosticAnalysis:
+    overall_rating: Literal["good", "fair", "poor", "unknown"]
+    overall_label: str
+    summary: str
+    primary_bottleneck: str
+    evidence: tuple[Evidence, ...]
+    findings: tuple[Finding, ...]
+    suitability: tuple[SuitabilityRating, ...]
+    uncertainty: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,6 +129,7 @@ class RunResult:
     finished_at: str
     metrics: tuple[MetricResult, ...]
     notes: tuple[str, ...] = ()
+    analysis: DiagnosticAnalysis | None = None
 
     @classmethod
     def demo(cls, target_name: str, target_host: str, repetitions: int) -> RunResult:
@@ -94,7 +143,7 @@ class RunResult:
 
         now = datetime.now(timezone.utc).isoformat()
         return cls(
-            schema_version="1.0",
+            schema_version="1.2",
             run_id=str(uuid4()),
             mode="demo",
             target_name=target_name,
@@ -117,6 +166,7 @@ class RunResult:
                     "Mbps",
                     fit((70.2, 72.1, 71.5, 73.0, 72.4)),
                 ),
+                MetricResult("packet_loss_percent", "패킷 손실", "%", (0.0,)),
             ),
             notes=("이 값은 UI와 데이터 계약 확인용 예시이며 실제 측정 결과가 아닙니다.",),
         )

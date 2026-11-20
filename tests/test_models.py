@@ -52,10 +52,14 @@ class ResultContractTests(unittest.TestCase):
     def test_demo_json_is_explicit_and_serializable(self) -> None:
         result = RunResult.demo("Example", "example.com", 7)
         payload = json.loads(result.to_json())
-        self.assertEqual(payload["schema_version"], "1.0")
+        self.assertEqual(payload["schema_version"], "1.2")
         self.assertEqual(payload["mode"], "demo")
-        self.assertEqual(len(payload["metrics"]), 5)
-        self.assertTrue(all(len(metric["samples"]) == 7 for metric in payload["metrics"]))
+        self.assertEqual(len(payload["metrics"]), 6)
+        repeated_metrics = [
+            metric for metric in payload["metrics"] if metric["key"] != "packet_loss_percent"
+        ]
+        self.assertTrue(all(len(metric["samples"]) == 7 for metric in repeated_metrics))
+        self.assertEqual(payload["metrics"][-1]["samples"], [0.0])
         self.assertIn("실제 측정 결과가 아닙니다", payload["notes"][0])
 
 

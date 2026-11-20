@@ -27,6 +27,9 @@ class CliTests(unittest.TestCase):
         payload = json.loads(output.getvalue())
         self.assertEqual(exit_code, 0)
         self.assertEqual(payload["mode"], "demo")
+        self.assertEqual(payload["schema_version"], "1.2")
+        self.assertIn("overall_rating", payload["analysis"])
+        self.assertEqual(len(payload["analysis"]["suitability"]), 4)
 
     def test_measure_requires_an_explicit_config(self) -> None:
         errors = io.StringIO()
@@ -44,7 +47,9 @@ class CliTests(unittest.TestCase):
                     ["--config", "config/default.json", "measure", "--json", "--quiet"]
                 )
         self.assertEqual(exit_code, 0)
-        self.assertEqual(json.loads(output.getvalue())["mode"], "measured")
+        payload = json.loads(output.getvalue())
+        self.assertEqual(payload["mode"], "measured")
+        self.assertIsNotNone(payload["analysis"])
 
 
 if __name__ == "__main__":
